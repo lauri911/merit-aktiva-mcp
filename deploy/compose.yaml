@@ -1,0 +1,34 @@
+# Server mode: the MCP server behind HTTPS, for claude.ai. See docs/server-setup.md.
+#   cp deploy/.env.example deploy/.env    # then fill it in
+#   mkdir -p deploy/secrets && put the secrets in files there (see below)
+#   docker compose -f deploy/compose.yaml up -d --build
+#   docker compose -f deploy/compose.yaml --profile tunnel up -d --build   # with a Cloudflare Tunnel
+services:
+  merit-mcp:
+    build: ..
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MCP_TRANSPORT: http
+      MERIT_API_ID_FILE: /run/secrets/merit_api_id
+      MERIT_API_KEY_FILE: /run/secrets/merit_api_key
+      OAUTH_CLIENT_SECRET_FILE: /run/secrets/oauth_client_secret
+      JWT_SIGNING_KEY_FILE: /run/secrets/jwt_signing_key
+    secrets: [merit_api_id, merit_api_key, oauth_client_secret, jwt_signing_key]
+    # Without a tunnel, put your HTTPS reverse proxy in front of this port.
+    ports: ["127.0.0.1:8000:8000"]
+
+  cloudflared:
+    profiles: [tunnel]
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token-file /run/secrets/cloudflared_token
+    secrets: [cloudflared_token]
+    depends_on: [merit-mcp]
+
+secrets:
+  merit_api_id: { file: ./secrets/merit_api_id }
+  merit_api_key: { file: ./secrets/merit_api_key }
+  oauth_client_secret: { file: ./secrets/oauth_client_secret }
+  jwt_signing_key: { file: ./secrets/jwt_signing_key }
+  cloudflared_token: { file: ./secrets/cloudflared_token }

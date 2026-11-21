@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+uv.lock
+.env
+secrets/
+.superpowers/
+*.mcpb
+dist/
+.pytest_cache/
+deploy/.env
+deploy/secrets/

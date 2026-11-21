@@ -1,0 +1,26 @@
+name: release
+
+# Push a tag like v0.1.0: tests run, the Claude Desktop extension (.mcpb) is built and attached
+# to a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --python 3.12 --group dev pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npx -y @anthropic-ai/mcpb@2.1.2 validate manifest.json
+      - run: npx -y @anthropic-ai/mcpb@2.1.2 pack . merit-aktiva-mcp.mcpb
+      - run: gh release create "$GITHUB_REF_NAME" merit-aktiva-mcp.mcpb --title "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

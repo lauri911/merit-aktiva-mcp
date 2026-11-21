@@ -1,0 +1,12 @@
+tests/
+docs/
+deploy/
+scripts/
+.github/
+.superpowers/
+.venv/
+*.mcpb
+Dockerfile
+uv.lock
+.pytest_cache/
+__pycache__/

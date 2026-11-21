@@ -1,0 +1,58 @@
+{
+  "manifest_version": "0.4",
+  "name": "merit-aktiva-mcp",
+  "display_name": "Merit Aktiva",
+  "version": "0.1.0",
+  "description": "Your Merit Aktiva bookkeeping in Claude: invoices, payments, reports, ledger and master data (unofficial).",
+  "long_description": "Every endpoint of the Merit Aktiva API (Estonia) as tools for Claude. Read-only unless you allow writing. Needs a Merit Aktiva company with a PRO or Premium licence and an API key (Merit Aktiva → Seadistused → API seadistus). Unofficial; not affiliated with Merit Tarkvara AS.",
+  "author": { "name": "lauri911", "url": "https://github.com/lauri911" },
+  "repository": { "type": "git", "url": "https://github.com/lauri911/merit-aktiva-mcp" },
+  "homepage": "https://github.com/lauri911/merit-aktiva-mcp",
+  "documentation": "https://github.com/lauri911/merit-aktiva-mcp#readme",
+  "support": "https://github.com/lauri911/merit-aktiva-mcp/issues",
+  "icon": "icon.png",
+  "license": "MIT",
+  "keywords": ["merit", "aktiva", "bookkeeping", "accounting", "estonia", "invoices"],
+  "server": {
+    "type": "uv",
+    "entry_point": "src/merit_aktiva_mcp/main.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "merit-aktiva-mcp"],
+      "env": {
+        "MERIT_API_ID": "${user_config.merit_api_id}",
+        "MERIT_API_KEY": "${user_config.merit_api_key}",
+        "MERIT_ALLOW_WRITE": "${user_config.allow_write}",
+        "MERIT_EXTRA_INSTRUCTIONS": "${user_config.extra_instructions}"
+      }
+    }
+  },
+  "user_config": {
+    "merit_api_id": {
+      "type": "string",
+      "title": "API ID",
+      "description": "From Merit Aktiva: Seadistused → API seadistus",
+      "required": true
+    },
+    "merit_api_key": {
+      "type": "string",
+      "title": "API key",
+      "description": "From Merit Aktiva: Seadistused → API seadistus",
+      "required": true,
+      "sensitive": true
+    },
+    "allow_write": {
+      "type": "boolean",
+      "title": "Allow writing",
+      "description": "Let Claude create and change documents in Merit (invoices, payments, cards). Off: read only.",
+      "default": false
+    },
+    "extra_instructions": {
+      "type": "string",
+      "title": "Notes about your company (optional)",
+      "description": "Anything Claude should know about how your company does its books",
+      "required": false
+    }
+  },
+  "compatibility": { "platforms": ["darwin", "win32", "linux"] }
+}
