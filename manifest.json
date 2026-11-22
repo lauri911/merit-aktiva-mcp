@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "merit-aktiva-mcp",
   "display_name": "Merit Aktiva",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Your Merit Aktiva bookkeeping in Claude: invoices, payments, reports, ledger and master data (unofficial).",
   "long_description": "Every endpoint of the Merit Aktiva API (Estonia) as tools for Claude. Read-only unless you allow writing. Needs a Merit Aktiva company with a PRO or Premium licence and an API key (Merit Aktiva → Seadistused → API seadistus). Unofficial; not affiliated with Merit Tarkvara AS.",
   "author": { "name": "lauri911", "url": "https://github.com/lauri911" },
