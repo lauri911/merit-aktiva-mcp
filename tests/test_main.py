@@ -16,7 +16,7 @@ SRC = Path(main.__file__).parent
 
 def cfg(**changes) -> config.Config:
     base = config.Config(api_id="id", api_key="key", base_url=config.DEFAULT_BASE_URL, allow_write=False,
-                         extra_instructions="", company_name=None, transport="stdio", public_url=None, auth_provider=None,
+                         extra_instructions="", company_name=None, ask_company=False, transport="stdio", public_url=None, auth_provider=None,
                          client_id=None, client_secret=None, tenant_id=None, allowed_emails=frozenset(),
                          jwt_signing_key=None)
     return dataclasses.replace(base, **changes)
@@ -81,6 +81,9 @@ def test_company_name_in_server_name_and_instructions():
     assert main.build(named).name == "Merit Aktiva – Kask ja Kuusk OÜ"
     assert main.instructions(named).startswith("These are the books of Kask ja Kuusk OÜ, and only theirs")
     assert main.build(cfg()).name == "Merit Aktiva" and "books of" not in main.instructions(cfg())
+    read_only = main.instructions(cfg(company_name="Kask ja Kuusk OÜ", ask_company=True))
+    assert "`company`" not in read_only and "ask them" not in read_only
+    assert "`company`" in main.instructions(cfg(company_name="Kask ja Kuusk OÜ", allow_write=True))
 
 
 def call(c: config.Config, tool: str, args: dict):
@@ -90,17 +93,30 @@ def call(c: config.Config, tool: str, args: dict):
     return asyncio.run(run())
 
 
-def test_company_named_in_write_previews_and_not_in_reads(monkeypatch):
+KK = "Kask ja Kuusk OÜ"
+
+
+@pytest.fixture
+def fake_merit(monkeypatch):
+    """Merit with no units yet; records every unit sent, and confirms it."""
     from merit_aktiva_mcp import merit
+    state = {"units": [], "sent": []}
 
-    async def no_rows(self, path, payload=None, method="POST", text_ok=False, **kw):
-        return []
-    monkeypatch.setattr(merit.Merit, "call", no_rows)
-    named = cfg(allow_write=True, company_name="Kask ja Kuusk OÜ")
+    async def fake_call(self, path, payload=None, method="POST", text_ok=False, **kw):
+        if path == "v2/senduom":
+            state["sent"].append(payload)
+            return {"Id": "11111111-2222-3333-4444-555555555555"}
+        return state["units"]
+    monkeypatch.setattr(merit.Merit, "call", fake_call)
+    return state
 
-    preview = call(named, "merit_create_unit", {"name": "kast", "dry_run": True})
+
+def test_company_named_in_write_previews_and_not_in_reads(fake_merit):
+    named = cfg(allow_write=True, company_name=KK)
+
+    preview = call(named, "merit_create_unit", {"company": KK, "name": "kast", "dry_run": True})
     assert list(preview.structured_content)[0] == "company"
-    assert preview.structured_content["company"] == "Kask ja Kuusk OÜ"
+    assert preview.structured_content["company"] == KK
     assert preview.content[0].text.startswith('{"company":"Kask ja Kuusk OÜ"')
     assert preview.structured_content["preview"] == {"new_unit": {"Name": "kast"}}
 
@@ -110,23 +126,72 @@ def test_company_named_in_write_previews_and_not_in_reads(monkeypatch):
     assert "company" not in (read.structured_content or {})
 
 
-def test_company_named_in_written_results_and_refusals_only(monkeypatch):
+def test_company_named_in_written_results_and_refusals_only(fake_merit, monkeypatch):
     from fastmcp.exceptions import ToolError
-    from merit_aktiva_mcp import merit
-    units: list = []
+    named = cfg(allow_write=True, company_name=KK)
 
-    async def fake_call(self, path, payload=None, method="POST", text_ok=False, **kw):
-        return {"Id": "11111111-2222-3333-4444-555555555555"} if path == "v2/senduom" else units
-    monkeypatch.setattr(merit.Merit, "call", fake_call)
-    named = cfg(allow_write=True, company_name="Kask ja Kuusk OÜ")
-
-    written = call(named, "merit_create_unit", {"name": "kast"}).structured_content
+    written = call(named, "merit_create_unit", {"company": KK, "name": "kast"}).structured_content
     assert list(written)[0] == "company" and written["written"] is True
 
-    units.append({"Code": "kast", "Name": "kast"})
+    fake_merit["units"].append({"Code": "kast", "Name": "kast"})
     with pytest.raises(ToolError, match="^Kask ja Kuusk OÜ: unit 'kast' already exists"):
-        call(named, "merit_create_unit", {"name": "kast"})
+        call(named, "merit_create_unit", {"company": KK, "name": "kast"})
 
     monkeypatch.setattr(auth, "build_auth", lambda c: None)
     server = dataclasses.replace(named, transport="http", public_url="https://merit.example.com")
     assert "company" not in call(server, "create_upload_link", {}).structured_content
+
+
+def test_write_tools_require_company_only_when_named():
+    for t in tools(cfg(allow_write=True, company_name=KK)):
+        props, required = t.input_schema["properties"], t.input_schema.get("required", [])
+        if t.annotations.destructive_hint:
+            assert required[0] == "company" and props["company"]["type"] == "string", t.name
+            assert "ask them first" not in props["company"]["description"]
+        else:
+            assert "company" not in props, t.name
+    assert all("company" not in t.input_schema["properties"] for t in tools(cfg(allow_write=True)))
+
+
+def test_other_company_is_refused_and_nothing_written(fake_merit):
+    from fastmcp.exceptions import ToolError
+    named = cfg(allow_write=True, company_name=KK)
+    with pytest.raises(ToolError, match="^Kask ja Kuusk OÜ: wrong company: this call is for 'Tamm AS'"):
+        call(named, "merit_create_unit", {"company": "Tamm AS", "name": "kast"})
+    with pytest.raises(ToolError, match="`company` is required"):
+        call(named, "merit_create_unit", {"company": " ", "name": "kast"})
+    with pytest.raises(ToolError, match="`company` is required"):
+        call(named, "merit_create_unit", {"name": "kast"})
+    assert fake_merit["sent"] == []
+    call(named, "merit_create_unit", {"company": "KASK JA KUUSK", "name": "kast"})
+    assert fake_merit["sent"] == [{"Name": "kast"}]
+
+
+@pytest.mark.parametrize("given, server, same", [
+    ("Kask ja Kuusk OÜ", KK, True), ("kask ja kuusk ou", KK, True), ("Kask ja Kuusk", KK, True),
+    ("OÜ Kask ja Kuusk", KK, True), ("Kask ja Kuusk O.Ü.", KK, True),
+    ("Kask & Kuusk OÜ", KK, False), ("Kask ja Kuusk AS", KK, False), ("Tamm OÜ", KK, False),
+    ("OÜ", KK, False), ("", KK, False),
+    ("Tu Kask OÜ", "Kask OÜ", False), ("Kask OÜ", "Tu Kask OÜ", False),
+    ("ООО Ромашка", "ООО Ромашка", True), ("Ромашка", "ООО Ромашка", True), ("Ромашка", "ООО Лютик", False),
+    ("Łąka sp. z o.o.", "Łąka Sp. z o.o.", True), ("Łąka", "Łąka sp. z o.o.", True), ("aka", "Łąka", False),
+])
+def test_same_company(given, server, same):
+    from merit_aktiva_mcp.company import same_company
+    assert same_company(given, server) is same
+
+
+def test_ask_company_switch(monkeypatch):
+    asking = cfg(allow_write=True, company_name=KK, ask_company=True)
+    assert "ask them which company" in main.instructions(asking)
+    assert "ask them which company" not in main.instructions(cfg(allow_write=True, company_name=KK))
+    unit = next(t for t in tools(asking) if t.name == "merit_create_unit")
+    assert "ask them first" in unit.input_schema["properties"]["company"]["description"]
+
+    monkeypatch.setenv("MERIT_ASK_COMPANY", "true")
+    monkeypatch.delenv("MERIT_COMPANY_NAME", raising=False)
+    monkeypatch.delenv("MERIT_COMPANY_NAME_FILE", raising=False)
+    with pytest.raises(SystemExit, match="MERIT_ASK_COMPANY needs MERIT_COMPANY_NAME"):
+        config.load()
+    monkeypatch.setenv("MERIT_COMPANY_NAME", KK)
+    assert config.load().ask_company is True

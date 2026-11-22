@@ -1,6 +1,6 @@
 [project]
 name = "merit-aktiva-mcp"
-version = "0.1.1"
+version = "0.1.2"
 description = "Unofficial MCP server for Merit Aktiva bookkeeping (Estonia): every API endpoint as tools for Claude"
 readme = "README.md"
 license = "MIT"

@@ -61,8 +61,10 @@ claude mcp add merit --env MERIT_API_ID=... --env MERIT_API_KEY=... -- uvx --fro
 
 **Several companies** (an accounting firm, for example): add one entry per company, each with its
 own name (`merit-acme`, `merit-beta`) and its own API key. One server talks to one company.
-Set `MERIT_COMPANY_NAME` on each, so Claude knows whose books each server holds and every write
-preview says which company it goes into.
+Set `MERIT_COMPANY_NAME` on each: Claude then knows whose books each server holds, every write
+must name the company it is for (a call meant for another company is refused, nothing written),
+and every preview says which company a change goes into. With `MERIT_ASK_COMPANY=true` Claude is
+also told to ask you which company a change is for whenever you have not said.
 
 ### Server: for claude.ai and teams
 
@@ -75,7 +77,8 @@ Run it with Docker behind HTTPS, with sign-in through **Microsoft Entra ID** (Mi
 |---|---|
 | `MERIT_API_ID`, `MERIT_API_KEY` | Required. From Seadistused → API seadistus |
 | `MERIT_ALLOW_WRITE` | `true` to also offer the write tools. Default: read only |
-| `MERIT_COMPANY_NAME` | Optional. The company's name, e.g. `Acme OÜ`: in the server's name, its instructions and every write preview and result. Set it when you connect more than one company |
+| `MERIT_COMPANY_NAME` | Optional. The company's name, e.g. `Acme OÜ`: in the server's name and instructions, required as `company` in every write (another company is refused; case and accents don't matter, and the legal form may be left out), and shown in every write preview and result. Set it when you connect more than one company |
+| `MERIT_ASK_COMPANY` | `true`: Claude is told to ask which company a change is for when you have not named it, instead of assuming this one. Needs `MERIT_COMPANY_NAME`. Default: off |
 | `MERIT_EXTRA_INSTRUCTIONS` | Anything Claude should know about how your company does its books (or `MERIT_EXTRA_INSTRUCTIONS_FILE`) |
 | `MERIT_BASE_URL` | Default `https://aktiva.merit.ee/api`. Merit's Polish and Finnish versions have other addresses and other VAT rules: untested |
 
@@ -165,8 +168,11 @@ käsk.
 
 **Mitu ettevõtet** (näiteks raamatupidamisbüroo): lisa iga ettevõtte jaoks oma kirje, igaühel oma
 nimi (`merit-acme`, `merit-beta`) ja oma API võti. Üks server töötab ühe ettevõttega.
-Pane igaühele `MERIT_COMPANY_NAME`, siis teab Claude, kelle raamatud igas serveris on, ja iga
-kirjutamise eelvaade näitab, millisesse ettevõttesse see läheb.
+Pane igaühele `MERIT_COMPANY_NAME`: siis teab Claude, kelle raamatud igas serveris on, iga
+kirjutamine peab nimetama ettevõtte, kellele see on (teisele ettevõttele mõeldud kutse lükatakse
+tagasi, midagi ei kirjutata), ja iga eelvaade näitab, millisesse ettevõttesse muudatus läheb.
+`MERIT_ASK_COMPANY=true` korral palutakse Claude'il ka küsida, millisele ettevõttele muudatus on,
+kui sa pole seda öelnud.
 
 #### Server: claude.ai ja meeskonna jaoks
 
@@ -180,7 +186,8 @@ Käivita see Dockeriga HTTPS-i taga, sisselogimisega **Microsoft Entra ID** (Mic
 |---|---|
 | `MERIT_API_ID`, `MERIT_API_KEY` | Kohustuslik. Seadistused → API seadistus |
 | `MERIT_ALLOW_WRITE` | `true`, et pakkuda ka kirjutavaid tööriistu. Vaikimisi ainult lugemine |
-| `MERIT_COMPANY_NAME` | Valikuline. Ettevõtte nimi, nt `Acme OÜ`: serveri nimes, juhistes ning iga kirjutamise eelvaates ja tulemuses. Pane see, kui ühendad mitu ettevõtet |
+| `MERIT_COMPANY_NAME` | Valikuline. Ettevõtte nimi, nt `Acme OÜ`: serveri nimes ja juhistes, kohustuslik `company` igas kirjutamises (teine ettevõte lükatakse tagasi; suur- ja väiketäht ning täpitähed ei loe ja õigusliku vormi võib ära jätta) ning iga kirjutamise eelvaates ja tulemuses. Pane see, kui ühendad mitu ettevõtet |
+| `MERIT_ASK_COMPANY` | `true`: Claude'il palutakse küsida, millisele ettevõttele muudatus on, kui sa pole seda nimetanud, selle asemel et eeldada seda ettevõtet. Vajab `MERIT_COMPANY_NAME`-i. Vaikimisi väljas |
 | `MERIT_EXTRA_INSTRUCTIONS` | Mida Claude peaks teadma sinu ettevõtte raamatupidamisest (või `MERIT_EXTRA_INSTRUCTIONS_FILE`) |
 | `MERIT_BASE_URL` | Vaikimisi `https://aktiva.merit.ee/api`. Meriti Poola ja Soome versioonidel on teised aadressid ja teised käibemaksureeglid: testimata |
 

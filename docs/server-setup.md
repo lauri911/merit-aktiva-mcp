@@ -63,7 +63,7 @@ All server settings:
 | `ENTRA_TENANT_ID` | Entra only |
 | `ALLOWED_EMAILS` | Comma-separated; nobody else gets in |
 | `JWT_SIGNING_KEY` | A long random string; the server signs its own tokens with it |
-| `MERIT_API_ID`, `MERIT_API_KEY`, `MERIT_ALLOW_WRITE`, `MERIT_COMPANY_NAME`, `MERIT_EXTRA_INSTRUCTIONS` | As in the README |
+| `MERIT_API_ID`, `MERIT_API_KEY`, `MERIT_ALLOW_WRITE`, `MERIT_COMPANY_NAME`, `MERIT_ASK_COMPANY`, `MERIT_EXTRA_INSTRUCTIONS` | As in the README |
 
 Any of them can be given as a file with `NAME_FILE=/path`; `deploy/compose.yaml` does that for the secrets.
 The server refuses to start in http mode until all sign-in settings are there.

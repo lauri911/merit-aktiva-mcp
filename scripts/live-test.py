@@ -67,12 +67,16 @@ async def run() -> None:
         async def read(name, tool, args):
             return await call(name, tool, args, write=False)
 
+        # With MERIT_COMPANY_NAME set, every write tool takes it as `company`.
+        named = {"company": cfg.company_name} if cfg.company_name else {}
+
         async def write(name, tool, args):
-            return await call(name, tool, args, write=True)
+            return await call(name, tool, {**named, **args}, write=True)
 
         async def refused(name, tool, args, expect, approve=False):
             """A refusal the tool must give: before writing anything (checked with a dry run), or with
             approve=True, when the call reaches Merit (a known Merit limitation the tool explains)."""
+            args = {**named, **args}
             try:
                 await c.call_tool(tool, args if approve else {**args, "dry_run": True})
                 results.append((name, False, "was not refused"))

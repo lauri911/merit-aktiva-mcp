@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "merit-aktiva-mcp",
   "display_name": "Merit Aktiva",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Your Merit Aktiva bookkeeping in Claude: invoices, payments, reports, ledger and master data (unofficial).",
   "long_description": "Every endpoint of the Merit Aktiva API (Estonia) as tools for Claude. Read-only unless you allow writing. Needs a Merit Aktiva company with a PRO or Premium licence and an API key (Merit Aktiva → Seadistused → API seadistus). Unofficial; not affiliated with Merit Tarkvara AS.",
   "author": { "name": "lauri911", "url": "https://github.com/lauri911" },
@@ -24,6 +24,7 @@
         "MERIT_API_KEY": "${user_config.merit_api_key}",
         "MERIT_ALLOW_WRITE": "${user_config.allow_write}",
         "MERIT_COMPANY_NAME": "${user_config.company_name}",
+        "MERIT_ASK_COMPANY": "${user_config.ask_company}",
         "MERIT_EXTRA_INSTRUCTIONS": "${user_config.extra_instructions}"
       }
     }
@@ -45,8 +46,14 @@
     "company_name": {
       "type": "string",
       "title": "Company name (optional)",
-      "description": "Whose books these are, e.g. Acme OÜ: Claude sees it, and every write shows it. Useful when another company is connected as its own server (see the README)",
+      "description": "Whose books these are, e.g. Acme OÜ: Claude sees it, every write must name it (others are refused) and shows it. Useful when another company is connected as its own server (see the README)",
       "required": false
+    },
+    "ask_company": {
+      "type": "boolean",
+      "title": "Ask which company",
+      "description": "Claude asks which company a change is for when you have not said. Needs Company name: without it, the extension does not start",
+      "default": false
     },
     "allow_write": {
       "type": "boolean",

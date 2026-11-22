@@ -39,7 +39,8 @@ class Config:
     base_url: str
     allow_write: bool
     extra_instructions: str
-    company_name: str | None  # whose books these are: shown to Claude and in every write
+    company_name: str | None  # whose books these are: shown to Claude, required in every write
+    ask_company: bool  # tell Claude to ask which company a write is for when the user has not said
     transport: Literal["stdio", "http"]
     # Server (http) mode only
     public_url: str | None
@@ -59,6 +60,8 @@ def load(transport: str | None = None) -> Config:
     chosen = (transport or setting("MCP_TRANSPORT") or "stdio").lower()
     if chosen not in ("stdio", "http"):
         raise SystemExit(f"MCP_TRANSPORT must be stdio or http, not {chosen!r}")
+    if _flag("MERIT_ASK_COMPANY") and not setting("MERIT_COMPANY_NAME"):
+        raise SystemExit("MERIT_ASK_COMPANY needs MERIT_COMPANY_NAME: the company Claude should ask about")
     return Config(
         api_id=setting("MERIT_API_ID"),
         api_key=setting("MERIT_API_KEY"),
@@ -66,6 +69,7 @@ def load(transport: str | None = None) -> Config:
         allow_write=_flag("MERIT_ALLOW_WRITE"),
         extra_instructions=setting("MERIT_EXTRA_INSTRUCTIONS") or "",
         company_name=setting("MERIT_COMPANY_NAME"),
+        ask_company=_flag("MERIT_ASK_COMPANY"),
         transport=chosen,  # type: ignore[arg-type]
         public_url=(setting("PUBLIC_URL") or "").rstrip("/") or None,
         auth_provider=(setting("AUTH_PROVIDER") or "").lower() or None,
