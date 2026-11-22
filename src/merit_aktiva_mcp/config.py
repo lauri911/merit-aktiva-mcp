@@ -39,6 +39,7 @@ class Config:
     base_url: str
     allow_write: bool
     extra_instructions: str
+    company_name: str | None  # whose books these are: shown to Claude and in every write
     transport: Literal["stdio", "http"]
     # Server (http) mode only
     public_url: str | None
@@ -64,6 +65,7 @@ def load(transport: str | None = None) -> Config:
         base_url=(setting("MERIT_BASE_URL") or DEFAULT_BASE_URL).rstrip("/"),
         allow_write=_flag("MERIT_ALLOW_WRITE"),
         extra_instructions=setting("MERIT_EXTRA_INSTRUCTIONS") or "",
+        company_name=setting("MERIT_COMPANY_NAME"),
         transport=chosen,  # type: ignore[arg-type]
         public_url=(setting("PUBLIC_URL") or "").rstrip("/") or None,
         auth_provider=(setting("AUTH_PROVIDER") or "").lower() or None,

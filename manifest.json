@@ -23,6 +23,7 @@
         "MERIT_API_ID": "${user_config.merit_api_id}",
         "MERIT_API_KEY": "${user_config.merit_api_key}",
         "MERIT_ALLOW_WRITE": "${user_config.allow_write}",
+        "MERIT_COMPANY_NAME": "${user_config.company_name}",
         "MERIT_EXTRA_INSTRUCTIONS": "${user_config.extra_instructions}"
       }
     }
@@ -40,6 +41,12 @@
       "description": "From Merit Aktiva: Seadistused → API seadistus",
       "required": true,
       "sensitive": true
+    },
+    "company_name": {
+      "type": "string",
+      "title": "Company name (optional)",
+      "description": "Whose books these are, e.g. Acme OÜ: Claude sees it, and every write shows it. Useful when another company is connected as its own server (see the README)",
+      "required": false
     },
     "allow_write": {
       "type": "boolean",

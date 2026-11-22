@@ -10,7 +10,7 @@ from merit_aktiva_mcp import auth, config
 from merit_aktiva_mcp.main import build
 
 BASE = config.Config(api_id="id", api_key="key", base_url=config.DEFAULT_BASE_URL, allow_write=False,
-                     extra_instructions="", transport="http", public_url="https://merit.example.com",
+                     extra_instructions="", company_name=None, transport="http", public_url="https://merit.example.com",
                      auth_provider="google", client_id="cid", client_secret="secret", tenant_id=None,
                      allowed_emails=frozenset({"anna@example.com"}), jwt_signing_key="k" * 32)
 

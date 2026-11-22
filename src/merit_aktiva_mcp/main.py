@@ -12,6 +12,9 @@ import os
 from contextlib import asynccontextmanager
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
+from fastmcp.server.middleware import Middleware
+from fastmcp.tools.base import ToolResult
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
@@ -74,9 +77,44 @@ READ_ONLY_NOTE = "\nRead only: writing is switched off (MERIT_ALLOW_WRITE), so n
 
 def instructions(cfg: config.Config) -> str:
     text = INSTRUCTIONS + (WRITE_INSTRUCTIONS if cfg.allow_write else READ_ONLY_NOTE)
+    if cfg.company_name:
+        text = (f"These are the books of {cfg.company_name}, and only theirs: for another company, use that "
+                "company's own Merit server, or tell the user it is not connected.\n\n" + text)
     if cfg.extra_instructions:
         text += "\nAbout this company:\n" + cfg.extra_instructions.strip() + "\n"
     return text
+
+
+class CompanyOnWrites(Middleware):
+    """Puts "company" first in every write tool's preview and result, and in front of its refusals,
+    so the user sees whose books a change goes into before confirming it, with several Merit servers
+    side by side."""
+
+    def __init__(self, company: str, mcp: FastMCP):
+        self.company = company
+        self.mcp = mcp
+        self.writes: dict[str, bool] = {}
+
+    async def is_write(self, name: str) -> bool:
+        if name not in self.writes:
+            tool = await self.mcp.get_tool(name)
+            self.writes[name] = bool(tool and tool.annotations and tool.annotations.destructive_hint)
+        return self.writes[name]
+
+    async def on_call_tool(self, context, call_next):
+        write = await self.is_write(context.message.name)
+        try:
+            result = await call_next(context)
+        except ToolError as e:  # a refused write names the company too
+            if write:
+                raise ToolError(f"{self.company}: {e}") from e
+            raise
+        if not write or result.is_error or not isinstance(result.structured_content, dict):
+            return result
+        named = ToolResult(structured_content={"company": self.company, **result.structured_content},
+                           meta=result.meta)
+        named.content += [c for c in result.content if c.type != "text"]  # keep any files
+        return named
 
 
 def build(cfg: config.Config) -> FastMCP:
@@ -93,7 +131,10 @@ def build(cfg: config.Config) -> FastMCP:
     if cfg.transport == "http":
         from . import auth  # only servers need the sign-in code
         provider = auth.build_auth(cfg)
-    mcp = FastMCP("Merit Aktiva", instructions=instructions(cfg), auth=provider, lifespan=lifespan)
+    name = f"Merit Aktiva – {cfg.company_name}" if cfg.company_name else "Merit Aktiva"
+    mcp = FastMCP(name, instructions=instructions(cfg), auth=provider, lifespan=lifespan)
+    if cfg.company_name:
+        mcp.add_middleware(CompanyOnWrites(cfg.company_name, mcp))
     merit.register(mcp, books)
     merit_more.register_more(mcp, books)
 

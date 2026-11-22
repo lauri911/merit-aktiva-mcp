@@ -16,7 +16,7 @@ SRC = Path(main.__file__).parent
 
 def cfg(**changes) -> config.Config:
     base = config.Config(api_id="id", api_key="key", base_url=config.DEFAULT_BASE_URL, allow_write=False,
-                         extra_instructions="", transport="stdio", public_url=None, auth_provider=None,
+                         extra_instructions="", company_name=None, transport="stdio", public_url=None, auth_provider=None,
                          client_id=None, client_secret=None, tenant_id=None, allowed_emails=frozenset(),
                          jwt_signing_key=None)
     return dataclasses.replace(base, **changes)
@@ -74,3 +74,59 @@ def test_instructions_name_only_this_servers_tools():
     assert named
     for name in named:  # "merit_find_*" names a group of tools
         assert name in real or (name.endswith("_") and any(r.startswith(name) for r in real)), name
+
+
+def test_company_name_in_server_name_and_instructions():
+    named = cfg(company_name="Kask ja Kuusk OÜ")
+    assert main.build(named).name == "Merit Aktiva – Kask ja Kuusk OÜ"
+    assert main.instructions(named).startswith("These are the books of Kask ja Kuusk OÜ, and only theirs")
+    assert main.build(cfg()).name == "Merit Aktiva" and "books of" not in main.instructions(cfg())
+
+
+def call(c: config.Config, tool: str, args: dict):
+    async def run():
+        async with Client(main.build(c)) as client:
+            return await client.call_tool(tool, args)
+    return asyncio.run(run())
+
+
+def test_company_named_in_write_previews_and_not_in_reads(monkeypatch):
+    from merit_aktiva_mcp import merit
+
+    async def no_rows(self, path, payload=None, method="POST", text_ok=False, **kw):
+        return []
+    monkeypatch.setattr(merit.Merit, "call", no_rows)
+    named = cfg(allow_write=True, company_name="Kask ja Kuusk OÜ")
+
+    preview = call(named, "merit_create_unit", {"name": "kast", "dry_run": True})
+    assert list(preview.structured_content)[0] == "company"
+    assert preview.structured_content["company"] == "Kask ja Kuusk OÜ"
+    assert preview.content[0].text.startswith('{"company":"Kask ja Kuusk OÜ"')
+    assert preview.structured_content["preview"] == {"new_unit": {"Name": "kast"}}
+
+    unnamed = call(cfg(allow_write=True), "merit_create_unit", {"name": "kast", "dry_run": True})
+    assert "company" not in unnamed.structured_content
+    read = call(named, "merit_reference_list", {"kind": "units"})
+    assert "company" not in (read.structured_content or {})
+
+
+def test_company_named_in_written_results_and_refusals_only(monkeypatch):
+    from fastmcp.exceptions import ToolError
+    from merit_aktiva_mcp import merit
+    units: list = []
+
+    async def fake_call(self, path, payload=None, method="POST", text_ok=False, **kw):
+        return {"Id": "11111111-2222-3333-4444-555555555555"} if path == "v2/senduom" else units
+    monkeypatch.setattr(merit.Merit, "call", fake_call)
+    named = cfg(allow_write=True, company_name="Kask ja Kuusk OÜ")
+
+    written = call(named, "merit_create_unit", {"name": "kast"}).structured_content
+    assert list(written)[0] == "company" and written["written"] is True
+
+    units.append({"Code": "kast", "Name": "kast"})
+    with pytest.raises(ToolError, match="^Kask ja Kuusk OÜ: unit 'kast' already exists"):
+        call(named, "merit_create_unit", {"name": "kast"})
+
+    monkeypatch.setattr(auth, "build_auth", lambda c: None)
+    server = dataclasses.replace(named, transport="http", public_url="https://merit.example.com")
+    assert "company" not in call(server, "create_upload_link", {}).structured_content
